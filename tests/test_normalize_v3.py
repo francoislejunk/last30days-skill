@@ -257,14 +257,31 @@ class NormalizeV3Tests(unittest.TestCase):
         )
         self.assertAlmostEqual(math.log1p(50000), signals._top_comment_score(normalized[0]), places=4)
 
-    def test_grounding_keeps_undated_results_with_low_date_confidence(self):
-        """Keyless web backends never supply dates; undated web links are kept, not dropped."""
+    def test_grounding_requires_a_usable_date(self):
         items = [
             {
                 "id": "g-1",
                 "title": "Undated result",
-                "url": "https://example.com/undated",
-                "snippet": "No date attached.",
+                "url": "https://example.com/post",
+                "snippet": "No date was returned.",
+            }
+        ]
+        normalized = normalize.normalize_source_items(
+            "grounding",
+            items,
+            "2026-02-15",
+            "2026-03-17",
+        )
+        self.assertEqual([], normalized)
+
+    def test_grounding_keeps_undated_keyless_current_window_results(self):
+        items = [
+            {
+                "id": "WK1",
+                "title": "Undated keyless result",
+                "url": "https://example.com/post",
+                "snippet": "Keyless backends return no date.",
+                "metadata": {"date_window_basis": "keyless_current"},
             }
         ]
         normalized = normalize.normalize_source_items(
@@ -301,7 +318,6 @@ class NormalizeV3Tests(unittest.TestCase):
             "2026-03-17",
         )
         self.assertEqual(["https://example.com/new"], [item.url for item in normalized])
-
 
     def test_youtube_recent_modes_drop_transcribed_older_items_when_date_window_is_empty(self):
         """#1043 rescue is scoped to evergreen_ok: recent topics get an honest empty result."""
